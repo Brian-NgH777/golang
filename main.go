@@ -7,71 +7,18 @@ import (
 	"net/http"
 	"github.com/gin-gonic/gin"
     "go.mongodb.org/mongo-driver/mongo"
-    "go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo/options"
+	"learn/custom-package"
 )
 
-func setupRouter() *gin.Engine {
-	// Creates a router without any middleware by default
-	// r := gin.New()
+var (
+	ToBe   bool       	= false
+	NumberInit uint 	= 111
+)
 
-	// Global middleware
-	// Logger middleware will write the logs to gin.DefaultWriter even if you set with GIN_MODE=release.
-	// By default gin.DefaultWriter = os.Stdout
-	// r.Use(gin.Logger())
-
-	// Recovery middleware recovers from any panics and writes a 500 if there was one.
-	// r.Use(gin.Recovery())
-
-	// Per route middleware, you can add as many as you desire.
-	// r.GET("/benchmark", MyBenchLogger(), benchEndpoint)
-
-	// Authorization group
-	// authorized := r.Group("/", AuthRequired())
-	// exactly the same as:
-	// authorized := r.Group("/")
-	// per group middleware! in this case we use the custom created
-	// AuthRequired() middleware just in the "authorized" group.
-	// authorized.Use(AuthRequired())
-	// {
-	// 	authorized.POST("/login", loginEndpoint)
-	// 	authorized.POST("/submit", submitEndpoint)
-	// 	authorized.POST("/read", readEndpoint)
-
-	// 	// nested group
-	// 	testing := authorized.Group("testing")
-	// 	testing.GET("/analytics", analyticsEndpoint)
-	// }
-
-	// Default With the Logger and Recovery middleware already attached
-	r := gin.Default()
-	r.GET("/ping", func(c *gin.Context) {
-		c.String(200, "pong")
-	})
-	return r
+func init() {  
+    println("Main package initialized", NumberInit)
 }
-
-func setupDB()*mongo.Database {
-	// Set client options
-	clientOptions := options.Client().ApplyURI("mongodb://localhost:27017")
-
-	// Connect to MongoDB
-	client, err := mongo.Connect(context.TODO(), clientOptions)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Check the connection
-	err = client.Ping(context.TODO(), nil)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-	database := client.Database("pttrainer")
-	fmt.Println("Connected to MongoDB!")
-	return database
-}
-
 
 func main() {
 	setupDB()
@@ -118,6 +65,17 @@ func main() {
 			} else {
 				c.JSON(500, gin.H{"error": err.Error()})
 			}
+		})
+
+		v1.GET("/goroutines",  func(c *gin.Context) {
+			go a()
+			go cccc()
+			fmt.Println("acccc")
+			go b()
+			goroutines.Channel()
+			c.JSON(200, gin.H{
+				"messages": "goroutines v1",
+			})
 		})
 	}
 
@@ -191,4 +149,86 @@ func main() {
 	})
 
 	r.Run(":3000")
+}
+
+func a() {
+	fmt.Println("aaaaaaaaa")
+}
+
+func b() {
+	n := 1
+	for n < 5 {
+		fmt.Println("n", n)
+		n +=1
+	}
+}
+
+func cccc() {
+	n := 10
+	for n < 15 {
+		fmt.Println("n", n)
+		n +=1
+	}
+}
+
+func setupRouter() *gin.Engine {
+	// Creates a router without any middleware by default
+	// r := gin.New()
+
+	// Global middleware
+	// Logger middleware will write the logs to gin.DefaultWriter even if you set with GIN_MODE=release.
+	// By default gin.DefaultWriter = os.Stdout
+	// r.Use(gin.Logger())
+
+	// Recovery middleware recovers from any panics and writes a 500 if there was one.
+	// r.Use(gin.Recovery())
+
+	// Per route middleware, you can add as many as you desire.
+	// r.GET("/benchmark", MyBenchLogger(), benchEndpoint)
+
+	// Authorization group
+	// authorized := r.Group("/", AuthRequired())
+	// exactly the same as:
+	// authorized := r.Group("/")
+	// per group middleware! in this case we use the custom created
+	// AuthRequired() middleware just in the "authorized" group.
+	// authorized.Use(AuthRequired())
+	// {
+	// 	authorized.POST("/login", loginEndpoint)
+	// 	authorized.POST("/submit", submitEndpoint)
+	// 	authorized.POST("/read", readEndpoint)
+
+	// 	// nested group
+	// 	testing := authorized.Group("testing")
+	// 	testing.GET("/analytics", analyticsEndpoint)
+	// }
+
+	// Default With the Logger and Recovery middleware already attached
+	r := gin.Default()
+	r.GET("/ping", func(c *gin.Context) {
+		c.String(200, "pong")
+	})
+	return r
+}
+
+func setupDB()*mongo.Database {
+	// Set client options
+	clientOptions := options.Client().ApplyURI("mongodb://localhost:27017")
+
+	// Connect to MongoDB
+	client, err := mongo.Connect(context.TODO(), clientOptions)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Check the connection
+	err = client.Ping(context.TODO(), nil)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+	database := client.Database("pttrainer")
+	fmt.Println("Connected to MongoDB!")
+	return database
 }
