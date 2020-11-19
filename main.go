@@ -77,6 +77,75 @@ func main() {
 				"messages": "goroutines v1",
 			})
 		})
+
+		v1.GET("/select-channels",  func(c *gin.Context) {
+			queue := make(chan int)
+			done := make(chan bool)
+
+			go func() {
+				for i:=0;i<10;i++ {
+					queue <-i
+				}
+				done <- true
+			}()
+
+			for {
+				select {
+					case v:=<-queue:
+						fmt.Println(v)
+					case <-done:
+						fmt.Println("Done")
+						c.JSON(200, gin.H{
+							"messages": "Select Channels v1",
+						})
+				}
+			}
+		})
+
+		v1.GET("/buffered-channels",  func(c *gin.Context) {
+			// buffered Channel
+			ch := make(chan int, 2) // cho phép đẩy 2 giá trị vào channel ch
+			ch <- 100 // 1
+			ch <- 200 // 2
+			// ch <- 300 // 3
+
+			// close(ch) // when close channel thì giá trị khi <-ch là default của type (chan int) is 0
+			// khi đã close channel thì ko thể gán giá trị cho nó
+			fmt.Println(<-ch)
+			fmt.Println(<-ch)
+			// fmt.Println(<-ch)
+			// fmt.Println(<-ch)
+			// fmt.Println(<-ch)
+			// fmt.Println(<-ch)
+
+			// buffered Channel info 
+			// + Nó ko có block như unbuffered channel
+			// + Add 3 vào channel vào ch thì ko dc 
+			// + <-ch thêm thì ko có giá trị
+
+			c.JSON(200, gin.H{
+				"messages": "buffered Channels v1",
+			})
+		})
+
+		v1.GET("/unbuffered-channels",  func(c *gin.Context) {
+			// UnBuffered Channel
+			ch := make(chan int) // or ch := make(chan int, 0)
+			go func() {
+				ch <- 100 // 1 gán 100 vào channecl ch
+				fmt.Println("Next")
+			}()
+			fmt.Println(<-ch) // 2 or result:= <- ch chờ giá trị channel ch
+			fmt.Println("Done")
+			// Unbuffered Channel info
+			//	+ Nó sẽ bị block khi không có 1 or 2 không run tiếp 
+			//	+ nếu ko có 2 thì fmt.Println("Next") sẽ không dc run nó block tại 1 ko có ai biến nào nhận giá trị ch
+			//	+ nếu ko có 1 mà có <-ch thì thì error deadlock thì ko có giá trị dc gán vào ch nên nó block
+
+			c.JSON(200, gin.H{
+				"messages": "UnBuffered Channels v1",
+			})
+		})
 	}
 
 	// r.GET("/user/:name", func(c *gin.Context) {
@@ -146,6 +215,13 @@ func main() {
 		names := c.PostFormMap("names")
 
 		fmt.Printf("ids: %v; names: %v", ids, names)
+	})
+
+	r.GET("/testing", func(c *gin.Context) {
+		tests := [6]int{2, 3, 5, 7, 11, 13}
+		for i,value:= range tests {
+			fmt.Println(i, value)
+		}
 	})
 
 	r.Run(":3000")
