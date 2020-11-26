@@ -2,26 +2,38 @@ package main
 
 import (
 	"context"
-    "fmt"
+	"fmt"
 	"log"
 	"net/http"
+	"time"
+
+	goroutines "learn/custom-package/goroutines"
+	models "learn/model"
+	repoImpl "learn/repository/repository-impl"
+
 	"github.com/gin-gonic/gin"
-    "go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"learn/custom-package"
+	"go.mongodb.org/mongo-driver/mongo/readpref"
 )
 
 var (
-	ToBe   bool       	= false
-	NumberInit uint 	= 111
+	ToBe       bool = false
+	NumberInit uint = 111
 )
 
-func init() {  
-    println("Main package initialized", NumberInit)
+type MongoDB struct {
+	Client *mongo.Client
+}
+
+var Mongo = &MongoDB{}
+
+func init() {
+	println("Main package initialized", NumberInit)
+	connectDB()
 }
 
 func main() {
-	setupDB()
 	r := setupRouter()
 
 	// r.GET("/clients", func(c *gin.Context) {
@@ -49,25 +61,24 @@ func main() {
 	// Grouping routes v1
 	v1 := r.Group("/v1")
 	{
-		v1.POST("/login",  func(c *gin.Context) {
+		v1.POST("/login", func(c *gin.Context) {
 			type Login struct {
-				Email string `form:"email" json:"email" binding:"required"`
+				Email    string `form:"email" json:"email" binding:"required"`
 				Password string `form:"password" json:"password" binding:"required"`
 			}
-	
+
 			var json2 Login
 			if err := c.ShouldBindJSON(&json2); err == nil {
 				c.JSON(200, gin.H{
 					"messages": "inserted v1",
-					"data": json2,
+					"data":     json2,
 				})
-		
 			} else {
 				c.JSON(500, gin.H{"error": err.Error()})
 			}
 		})
 
-		v1.GET("/goroutines",  func(c *gin.Context) {
+		v1.GET("/goroutines", func(c *gin.Context) {
 			go a()
 			go cccc()
 			fmt.Println("acccc")
@@ -78,35 +89,35 @@ func main() {
 			})
 		})
 
-		v1.GET("/select-channels",  func(c *gin.Context) {
+		v1.GET("/select-channels", func(c *gin.Context) {
 			queue := make(chan int)
 			done := make(chan bool)
 
 			go func() {
-				for i:=0;i<10;i++ {
-					queue <-i
+				for i := 0; i < 10; i++ {
+					queue <- i
 				}
 				done <- true
 			}()
 
 			for {
 				select {
-					case v:=<-queue:
-						fmt.Println(v)
-					case <-done:
-						fmt.Println("Done")
-						c.JSON(200, gin.H{
-							"messages": "Select Channels v1",
-						})
+				case v := <-queue:
+					fmt.Println(v)
+				case <-done:
+					fmt.Println("Done")
+					c.JSON(200, gin.H{
+						"messages": "Select Channels v1",
+					})
 				}
 			}
 		})
 
-		v1.GET("/buffered-channels",  func(c *gin.Context) {
+		v1.GET("/buffered-channels", func(c *gin.Context) {
 			// buffered Channel
 			ch := make(chan int, 2) // cho phép đẩy 2 giá trị vào channel ch
-			ch <- 100 // 1
-			ch <- 200 // 2
+			ch <- 100               // 1
+			ch <- 200               // 2
 			// ch <- 300 // 3
 
 			// close(ch) // when close channel thì giá trị khi <-ch là default của type (chan int) is 0
@@ -118,9 +129,9 @@ func main() {
 			// fmt.Println(<-ch)
 			// fmt.Println(<-ch)
 
-			// buffered Channel info 
+			// buffered Channel info
 			// + Nó ko có block như unbuffered channel
-			// + Add 3 vào channel vào ch thì ko dc 
+			// + Add 3 vào channel vào ch thì ko dc
 			// + <-ch thêm thì ko có giá trị
 
 			c.JSON(200, gin.H{
@@ -128,7 +139,7 @@ func main() {
 			})
 		})
 
-		v1.GET("/unbuffered-channels",  func(c *gin.Context) {
+		v1.GET("/unbuffered-channels", func(c *gin.Context) {
 			// UnBuffered Channel
 			ch := make(chan int) // or ch := make(chan int, 0)
 			go func() {
@@ -138,7 +149,7 @@ func main() {
 			fmt.Println(<-ch) // 2 or result:= <- ch chờ giá trị channel ch
 			fmt.Println("Done")
 			// Unbuffered Channel info
-			//	+ Nó sẽ bị block khi không có 1 or 2 không run tiếp 
+			//	+ Nó sẽ bị block khi không có 1 or 2 không run tiếp
 			//	+ nếu ko có 2 thì fmt.Println("Next") sẽ không dc run nó block tại 1 ko có ai biến nào nhận giá trị ch
 			//	+ nếu ko có 1 mà có <-ch thì thì error deadlock thì ko có giá trị dc gán vào ch nên nó block
 
@@ -186,10 +197,10 @@ func main() {
 	})
 
 	r.POST("/post", func(c *gin.Context) {
-		
+
 		type CreatePost struct {
 			Title string `form:"title" json:"title" binding:"required"`
-			Body string `form:"body" json:"body" binding:"required"`
+			Body  string `form:"body" json:"body" binding:"required"`
 		}
 
 		var json CreatePost
@@ -197,9 +208,9 @@ func main() {
 		if err := c.ShouldBindJSON(&json); err == nil {
 			c.JSON(200, gin.H{
 				"messages": "inserted",
-				"data": json,
+				"data":     json,
 			})
-	
+
 		} else {
 			c.JSON(500, gin.H{"error": err.Error()})
 		}
@@ -208,7 +219,7 @@ func main() {
 	// Map as querystring or postform parameters
 	// POST /post?ids[a]=1234&ids[b]=hello HTTP/1.1
 	// Content-Type: application/x-www-form-urlencoded
-    // names[first]=thinkerou&names[second]=tianou
+	// names[first]=thinkerou&names[second]=tianou
 	r.POST("/post-map", func(c *gin.Context) {
 
 		ids := c.QueryMap("ids")
@@ -218,9 +229,52 @@ func main() {
 	})
 
 	r.GET("/testing", func(c *gin.Context) {
-		tests := [6]int{2, 3, 5, 7, 11, 13}
-		for i,value:= range tests {
-			fmt.Println(i, value)
+		// tests := [6]int{2, 3, 5, 7, 11, 13}
+		// for i, value := range tests {
+		// 	fmt.Println(i, value)
+		// }
+		var aa = goroutines.ArraySliceType()
+		fmt.Println(aa)
+
+	})
+
+	r.GET("/find-body-category", func(c *gin.Context) {
+		result := repoImpl.NewBodycategoryRepo(Mongo.Client.
+			Database("pttrainer")).
+			FindBodycategories()
+
+		c.JSON(200, gin.H{
+			"messages": "inserted",
+			"data":     result,
+		})
+	})
+
+	r.POST("/body-category", func(c *gin.Context) {
+		type body struct {
+			Name        string `form:"name" json:"name" binding:"required"`
+			Thumbnail   string `form:"thumbnail" json:"thumbnail"`
+			Description string `form:"description" json:"description"`
+		}
+
+		var json body
+		if err := c.ShouldBindJSON(&json); err == nil {
+			bodycategory := models.Bodycategories{
+				BcName:        json.Name,
+				BcThumbnail:   json.Thumbnail,
+				BcDescription: json.Description,
+			}
+			result := repoImpl.NewBodycategoryRepo(Mongo.Client.
+				Database("pttrainer")).
+				InsertBodycategory(bodycategory)
+
+			c.JSON(200, gin.H{
+				"messages": "body category v1",
+				"data":     result,
+			})
+		} else {
+			c.JSON(500, gin.H{
+				"messages": "false",
+			})
 		}
 	})
 
@@ -235,7 +289,7 @@ func b() {
 	n := 1
 	for n < 5 {
 		fmt.Println("n", n)
-		n +=1
+		n += 1
 	}
 }
 
@@ -243,7 +297,7 @@ func cccc() {
 	n := 10
 	for n < 15 {
 		fmt.Println("n", n)
-		n +=1
+		n += 1
 	}
 }
 
@@ -287,24 +341,24 @@ func setupRouter() *gin.Engine {
 	return r
 }
 
-func setupDB()*mongo.Database {
+func connectDB() *MongoDB {
 	// Set client options
-	clientOptions := options.Client().ApplyURI("mongodb://localhost:27017")
-
-	// Connect to MongoDB
-	client, err := mongo.Connect(context.TODO(), clientOptions)
-
+	client, err := mongo.NewClient(options.Client().ApplyURI("mongodb+srv://pttrainer:NmSJWnnBmApV5sEu@maincluster.gkfe6.mongodb.net/pttrainer?retryWrites=true&w=majority"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	err = client.Connect(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// Check the connection
-	err = client.Ping(context.TODO(), nil)
-
+	err = client.Ping(ctx, readpref.Primary())
 	if err != nil {
 		log.Fatal(err)
 	}
-	database := client.Database("pttrainer")
-	fmt.Println("Connected to MongoDB!")
-	return database
+
+	fmt.Println("Connect mongo db success")
+	Mongo.Client = client
+	return Mongo
 }
