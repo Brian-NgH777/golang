@@ -5,6 +5,6 @@ import (
 )
 
 type BodycategoriesRepository interface {
-	FindBodycategories() error
+	FindBodycategories() ([]models.Bodycategories, error)
 	InsertBodycategory(u models.Bodycategories) error
 }

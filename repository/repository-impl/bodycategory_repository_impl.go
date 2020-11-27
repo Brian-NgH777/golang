@@ -2,7 +2,6 @@ package repositoryimpl
 
 import (
 	"context"
-	"fmt"
 	models "learn/model"
 	repo "learn/repository"
 	"log"
@@ -22,9 +21,9 @@ func NewBodycategoryRepo(db *mongo.Database) repo.BodycategoriesRepository {
 	}
 }
 
-func (mongo *BodycategoryRepoImpl) FindBodycategories() error {
+func (mongo *BodycategoryRepoImpl) FindBodycategories() ([]models.Bodycategories, error) {
 	// Here's an array in which you can store the decoded documents
-	// bodycategories := []interface{}
+	bodycategories := []models.Bodycategories{}
 
 	// Pass these options to the Find method
 	findOptions := options.Find()
@@ -42,18 +41,17 @@ func (mongo *BodycategoryRepoImpl) FindBodycategories() error {
 	for cur.Next(context.TODO()) {
 
 		// create a value into which the single document can be decoded
-		var elem bson.M
+		elem := models.Bodycategories{}
 		if err := cur.Decode(&elem); err != nil {
 			log.Fatal(err)
 		}
-		fmt.Println("elemelem", elem)
-		// bodycategories = append(bodycategories, &elem)
+		bodycategories = append(bodycategories, elem)
 	}
 
 	// Close the cursor once finished
 	// cur.Close(context.TODO())
 
-	return nil
+	return bodycategories, nil
 
 }
 
