@@ -239,7 +239,7 @@ func main() {
 	})
 
 	r.GET("/find-body-category", func(c *gin.Context) {
-		result, _ := repoImpl.NewBodycategoryRepo(Mongo.Client.
+		result := repoImpl.NewBodycategoryRepo(Mongo.Client.
 			Database("pttrainer")).
 			FindBodycategories()
 
